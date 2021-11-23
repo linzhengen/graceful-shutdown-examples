@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,7 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -17,15 +19,9 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	router := gin.Default()
-	router.GET("/", func(c *gin.Context) {
-		time.Sleep(5 * time.Second)
-		c.String(http.StatusOK, "Welcome Gin Server")
-	})
-
 	srv := &http.Server{
-		Addr:    ":8091",
-		Handler: router,
+		Addr:    ":8092",
+		Handler: service(),
 	}
 
 	// Initializing the server in a goroutine so that
@@ -53,4 +49,30 @@ func main() {
 	}
 
 	log.Println("Server successfully stopped")
+}
+
+func service() http.Handler {
+	r := chi.NewRouter()
+
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Logger)
+
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("sup"))
+	})
+
+	r.Get("/slow", func(w http.ResponseWriter, r *http.Request) {
+		// Simulates some hard work.
+		//
+		// We want this handler to complete successfully during a shutdown signal,
+		// so consider the work here as some background routine to fetch a long running
+		// search query to find as many results as possible, but, instead we cut it short
+		// and respond with what we have so far. How a shutdown is handled is entirely
+		// up to the developer, as some code blocks are preemptable, and others are not.
+		time.Sleep(5 * time.Second)
+
+		w.Write([]byte(fmt.Sprintf("all done.\n")))
+	})
+
+	return r
 }
