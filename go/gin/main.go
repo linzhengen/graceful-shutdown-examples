@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -13,12 +14,12 @@ import (
 
 func main() {
 	// Create context that listens for the interrupt signal from the OS.
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	router := gin.Default()
 	router.GET("/", func(c *gin.Context) {
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		c.String(http.StatusOK, "Welcome Gin Server")
 	})
 
@@ -40,7 +41,7 @@ func main() {
 
 	// Restore default behavior on the interrupt signal and notify user of shutdown.
 	stop()
-	log.Println("shutting down gracefully, press Ctrl+C again to force")
+	log.Println("shutting down gracefully")
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
@@ -50,5 +51,5 @@ func main() {
 		log.Fatal("Server forced to shutdown: ", err)
 	}
 
-	log.Println("Server exiting")
+	log.Println("Server successfully stopped")
 }

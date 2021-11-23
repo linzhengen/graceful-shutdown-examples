@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"os"
@@ -18,6 +19,10 @@ import (
 )
 
 func main() {
+	// Create context that listens for the interrupt signal from the OS.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8090"
@@ -40,13 +45,12 @@ func main() {
 		}
 	}()
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(interrupt)
-	select {
-	case <-interrupt:
-		break
-	}
+	// Listen for the interrupt signal.
+	<-ctx.Done()
+
+	// Restore default behavior on the interrupt signal and notify user of shutdown.
+	stop()
+	log.Println("shutting down gracefully")
 
 	healthServer.SetServingStatus("grpc.health.v1.echo", healthpb.HealthCheckResponse_NOT_SERVING)
 	ch := make(chan struct{})
@@ -58,7 +62,7 @@ func main() {
 	}()
 	select {
 	case <-ch:
-		log.Printf("Graceful stoped")
+		log.Printf("Graceful stopped")
 	case <-time.After(5 * time.Second):
 		// took too long, manually close open transports
 		// e.g. watch streams
@@ -66,4 +70,5 @@ func main() {
 		grpcServer.Stop()
 		<-ch
 	}
+	log.Println("Server successfully stopped")
 }
