@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = "github.com/linzhengen/graceful-shutdown-examples/go/grpc/echo";
+
+package echo;
+
+service Echo {
+  rpc Echo (EchoRequest) returns (EchoResponse) {}
+}
+
+message EchoRequest {
+  string content = 1;
+}
+
+message EchoResponse {
+  string content = 1;
+}
